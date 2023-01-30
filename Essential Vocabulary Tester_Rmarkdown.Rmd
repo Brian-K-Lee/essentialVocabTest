@@ -1,0 +1,125 @@
+---
+title: "Essential Vocabu lary Tester"
+author: "Brian Lee"
+date: "April 23, 2022"
+source: "Vocabulary.com (https://www.vocabulary.com/lists/145774)"
+output: html_document
+---
+
+##############################################################################
+#############Install & Load R Packages and Set Folder Directory###############
+##############################################################################
+1. Check For Installed R Packages And Install Missing Packages
+2. Load R Pacakges
+3. Set Import & Export Folder Directory -- Update "dir" on line 30
+(e.g. dir <- "C:/Users/KT/Documents/Projects/Essential Vocabularies/")
+
+```{r Install & Load R Pakcages and Set Folder Directory}
+#1. Check For Installed R Packages And Intall Missing Packages
+packages <- c("dplyr","tools")
+missingpackages <- setdiff(packages, rownames(installed.packages()))
+if(length(missingpackages) > 0){
+  install.packages(missingpackages)
+}
+
+#2. Load R Pacakges
+library(dplyr)
+library(tools)
+
+#3. Set Import & Export Folder Directory
+dir <- "C:/Users/KT/Documents/Projects/Essential Vocabularies/"
+```
+
+
+##############################################################################
+###################Import, Format and Clean Raw Data##########################
+##############################################################################
+1. Read In File
+2. Format Import File To Have Vocabulary On Column 1 And Definition On Column 2
+ 2.1. Create "Definition" Column And Copy Over Definition
+ 2.2. Move Definition Column Up One Row So Definitions Match Vocabularies
+ 2.3. Check If Definitions Match Vocabularies; If They Don't Match, Print "Check Your Data"
+ 2.4. Delete Definitions From Column 1
+ 2.5. Remove Number From Column 1, Rename Column Name, Make Propercase
+
+```{r Import, Format and Clean Raw Data}
+#1. Read In File
+vocab <- read.csv(paste0(dir,"EssentialVocabs.csv"),stringsAsFactors = F,header=F)
+
+#2. Format Import File To Have Vocabulary On Column 1 And Definition On Column 2
+ #2.1. Create "Definition" Column And Copy Over Definition
+vocab$Definition <- NA
+vocab$Definition[!grepl("\\d",vocab$V1)] <- vocab$V1[!grepl("\\d",vocab$V1)]
+ #2.2. Move Definition Column Up One Row So Definitions Match Vocabularies
+rownum_even <- sort(seq(2,nrow(vocab),2))
+for (i in rownum_even){
+  vocab$Definition[i-1] <- vocab$Definition[i]
+}
+ #2.3. Check If Definitions Match Vocabularies; If They Don't Match, Print "Check Your Data"
+for(i in rownum_even){
+  if(vocab$V1[i]!=vocab$Definition[i-1]){
+    print("Check Your Data")
+  }
+  break
+}
+ #2.4. Delete Definitions From Column 1
+vocab <- vocab[-rownum_even,]
+ #2.5. Remove Number From Column 1, Rename Column Name, Make Propercase
+vocab$V1  <-  gsub("\\d{1,3}\\.\\s","",vocab$V1)
+names(vocab)[names(vocab)=="V1"]  <-  "Vocabulary"
+vocab$Vocabulary<-toTitleCase(vocab$Vocabulary)
+
+
+```
+
+
+##############################################################################
+###########################Create and Run Test################################
+##############################################################################
+1. Create "test" Data Frame
+2. Run Actual Testing
+
+```{r Create and Run Test}
+#1. Create "test" Data Frame
+test <- data.frame("Definition"=vector(),"Vocabulary"=vector(),"Answer"=vector(),"Result"=vector())
+
+#2. Run Actual Testing -- Pick 10 Random Vocabularies Or Number of Your Choice And Test Your Input ---  To Adjust # of Vocabularies for Testing, Update Number on Line 88 (e.g. 10)
+review <- data.frame("Vocabulary"=vector(),"Definition"=vector())
+review1 <- data.frame("Vocabulary"=vector(),"Definition"=vector())
+for(i in 1:3){
+  test[i,1] <- sample(vocab$Definition,1)
+  test[i,2] <- vocab$Vocabulary[vocab$Definition%in%test[i,1]]
+  cat("Test #",i,". ",test[i,1],";",sep="")
+  input <- readline(prompt="  Type In Your Answer:  ")
+  test[i,3] <- toTitleCase(input)
+  if(tolower(input)==tolower(test[i,2])){
+    test[i,4] <- "Correct"  
+    cat("Your answer was ",toTitleCase(test[i,3]),". It is ",test[i,4],". ",sep="")
+    cat( "\n" )
+  }else{
+    test[i,4] <- "Incorrect"
+    cat("Your answer was ",toTitleCase(test[i,3]),". It is ",test[i,4],". Correct answer is ",test[i,2],". ",sep="")
+    cat( "\n" )
+}
+}
+
+```
+
+
+##############################################################################
+##############Print Test Score And Export Misses For Review###################
+##############################################################################
+1. Print Test Score
+2. Combine and Export Misses
+
+```{r Print Test Score And Export Misses For Review}
+#1. Print Score
+score<-paste0("Your score is ",paste(round(sum(test$Result=="Correct")/nrow(test)*100,0)),"%")
+print(score)
+
+#2. Combine and Export Misses
+review <- test[test$Result=="Incorrect",]
+write.csv(review,paste0(dir,"MissesToReview_",Sys.Date(),".csv"),row.names = F)
+
+
+```
